@@ -1,9 +1,9 @@
-/**
- * SMS notifications via Twilio.
- * Uncomment and wire up when Twilio credentials are added to .env.
- */
-
 const AGENCY_NAME = process.env.AGENCY_NAME || 'Your Agency';
+
+function getTwilioClient() {
+  const twilio = require('twilio');
+  return twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
+}
 
 async function sendInternalSmsNotification(booking) {
   if (!process.env.TWILIO_ACCOUNT_SID) {
@@ -11,16 +11,12 @@ async function sendInternalSmsNotification(booking) {
     return null;
   }
 
-  // const twilio = require('twilio');
-  // const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  // const { contact, business } = booking;
-  // return client.messages.create({
-  //   from: process.env.TWILIO_FROM_NUMBER,
-  //   to: process.env.NOTIFY_SMS,
-  //   body: `New booking: ${contact.firstName} ${contact.lastName} · ${business.serviceType} · ${contact.phone}`,
-  // });
-
-  return null;
+  const { contact, business } = booking;
+  return getTwilioClient().messages.create({
+    from: process.env.TWILIO_FROM_NUMBER,
+    to:   process.env.NOTIFY_SMS,
+    body: `New lead: ${contact.firstName} ${contact.lastName} · ${business.serviceType} · ${contact.phone}`,
+  });
 }
 
 async function sendLeadSmsConfirmation(booking) {
@@ -29,16 +25,12 @@ async function sendLeadSmsConfirmation(booking) {
     return null;
   }
 
-  // const twilio = require('twilio');
-  // const client = twilio(process.env.TWILIO_ACCOUNT_SID, process.env.TWILIO_AUTH_TOKEN);
-  // const { contact } = booking;
-  // return client.messages.create({
-  //   from: process.env.TWILIO_FROM_NUMBER,
-  //   to: contact.phone,
-  //   body: `Hi ${contact.firstName}, this is ${AGENCY_NAME} — we got your strategy call request and will be in touch within 1 hour. Reply STOP to opt out.`,
-  // });
-
-  return null;
+  const { contact } = booking;
+  return getTwilioClient().messages.create({
+    from: process.env.TWILIO_FROM_NUMBER,
+    to:   contact.phone,
+    body: `Hi ${contact.firstName}, this is ${AGENCY_NAME} — we got your request and will be in touch within 1 hour. Reply STOP to opt out.`,
+  });
 }
 
 module.exports = { sendInternalSmsNotification, sendLeadSmsConfirmation };

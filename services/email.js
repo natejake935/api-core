@@ -1,10 +1,7 @@
-const { Resend } = require('resend');
-
-const resend = new Resend(process.env.RESEND_API_KEY);
+const https = require('https');
 
 const AGENCY_NAME     = process.env.AGENCY_NAME     || 'Your Agency';
 const AGENCY_LOCATION = process.env.AGENCY_LOCATION || '';
-const FROM_ADDRESS    = `${AGENCY_NAME} <${process.env.RESEND_FROM}>`;
 
 function e(str) {
   return String(str ?? '')
@@ -15,36 +12,69 @@ function e(str) {
     .replace(/'/g, '&#x27;');
 }
 
+// POST to Twilio Comms Email API using Node's built-in https module.
+function twilioEmailSend(payload) {
+  return new Promise((resolve, reject) => {
+    const body = JSON.stringify(payload);
+    const auth  = Buffer.from(
+      `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
+    ).toString('base64');
+
+    const req = https.request(
+      {
+        hostname: 'comms.twilio.com',
+        path: '/v1/Emails',
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Content-Length': Buffer.byteLength(body),
+          'Authorization': `Basic ${auth}`,
+        },
+      },
+      (res) => {
+        let data = '';
+        res.on('data', (chunk) => { data += chunk; });
+        res.on('end', () => {
+          if (res.statusCode === 202) return resolve(JSON.parse(data));
+          reject(new Error(`Twilio email API error ${res.statusCode}: ${data}`));
+        });
+      }
+    );
+
+    req.on('error', reject);
+    req.write(body);
+    req.end();
+  });
+}
+
 async function sendInternalNotification(booking) {
   const { contact, business, inquiry } = booking;
   const fullName = `${contact.firstName} ${contact.lastName}`;
 
-  const { data, error } = await resend.emails.send({
-    from: FROM_ADDRESS,
-    to: [process.env.RESEND_NOTIFY_TO],
-    subject: `New Strategy Call Request — ${business.name.slice(0, 100)}`,
-    html: internalHtml({ fullName, contact, business, inquiry }),
-    text: internalText({ fullName, contact, business, inquiry }),
+  return twilioEmailSend({
+    from: { address: process.env.TWILIO_EMAIL_FROM, name: AGENCY_NAME },
+    to:   [{ address: process.env.NOTIFY_EMAIL }],
+    content: {
+      subject: `New Strategy Call Request — ${business.name.slice(0, 100)}`,
+      html:    internalHtml({ fullName, contact, business, inquiry }),
+      text:    internalText({ fullName, contact, business, inquiry }),
+    },
   });
-
-  if (error) throw new Error('Internal notification send failed.');
-  return data;
 }
 
 async function sendLeadConfirmation(booking) {
   const { contact, business } = booking;
   const fullName = `${contact.firstName} ${contact.lastName}`;
 
-  const { data, error } = await resend.emails.send({
-    from: FROM_ADDRESS,
-    to: [contact.email],
-    subject: `You're all set — ${AGENCY_NAME} Strategy Call`,
-    html: confirmationHtml({ fullName, business }),
-    text: confirmationText({ fullName, business }),
+  return twilioEmailSend({
+    from: { address: process.env.TWILIO_EMAIL_FROM, name: AGENCY_NAME },
+    to:   [{ address: contact.email, name: fullName }],
+    content: {
+      subject: `You're all set — ${AGENCY_NAME} Strategy Call`,
+      html:    confirmationHtml({ fullName, business }),
+      text:    confirmationText({ fullName, business }),
+    },
   });
-
-  if (error) throw new Error('Lead confirmation send failed.');
-  return data;
 }
 
 // ---------- Templates ----------
@@ -53,10 +83,7 @@ function internalHtml({ fullName, contact, business, inquiry }) {
   const footer = AGENCY_LOCATION ? `${e(AGENCY_NAME)} · ${e(AGENCY_LOCATION)}` : e(AGENCY_NAME);
   return `<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-</head>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
 <body style="margin:0;padding:0;background:#07090d;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:32px auto;background:#111821;border:1px solid rgba(255,255,255,0.10);border-radius:16px;overflow:hidden;">
 
@@ -137,10 +164,7 @@ function confirmationHtml({ fullName, business }) {
 
   return `<!DOCTYPE html>
 <html>
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
-</head>
+<head><meta charset="utf-8" /><meta name="viewport" content="width=device-width, initial-scale=1" /></head>
 <body style="margin:0;padding:0;background:#07090d;font-family:'Helvetica Neue',Helvetica,Arial,sans-serif;">
   <div style="max-width:600px;margin:32px auto;background:#111821;border:1px solid rgba(255,255,255,0.10);border-radius:16px;overflow:hidden;">
 
@@ -152,10 +176,7 @@ function confirmationHtml({ fullName, business }) {
     <div style="padding:32px 32px 24px;">
       <p style="font-size:16px;color:#ffffff;font-weight:600;margin:0 0 12px;">Hi ${e(fullName)},</p>
       <p style="font-size:14px;color:#a7b0bf;line-height:1.7;margin:0 0 20px;">
-        Thanks for reaching out about <strong style="color:#ffffff;">${e(business.name)}</strong>. We've received your strategy call request and will be in touch within <strong style="color:#2d8cff;">1 business hour</strong> via your preferred contact method.
-      </p>
-      <p style="font-size:14px;color:#a7b0bf;line-height:1.7;margin:0 0 28px;">
-        On the call, we'll review your current setup, identify where leads are slipping through, and walk you through a clear action plan — no pressure, just real solutions.
+        Thanks for reaching out about <strong style="color:#ffffff;">${e(business.name)}</strong>. We've received your request and will be in touch within <strong style="color:#2d8cff;">1 business hour</strong> via your preferred contact method.
       </p>
 
       <div style="background:#0d1117;border:1px solid rgba(255,255,255,0.08);border-radius:12px;padding:22px 24px;margin-bottom:28px;">
@@ -180,7 +201,7 @@ function confirmationHtml({ fullName, business }) {
 function confirmationText({ fullName, business }) {
   return `Hi ${fullName},
 
-Thanks for reaching out about ${business.name}. We received your strategy call request and will be in touch within 1 business hour via your preferred contact method.
+Thanks for reaching out about ${business.name}. We received your request and will be in touch within 1 business hour via your preferred contact method.
 
 WHAT TO EXPECT
 --------------
