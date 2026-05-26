@@ -2,7 +2,7 @@
   "name": "contractor-lead-api",
   "version": "1.0.0",
   "private": true,
-  "description": "Shared lead capture API — handles email + SMS (Twilio) and CRM (HubSpot). Configure per customer via .env.",
+  "description": "Shared lead capture API for contractor websites with Telnyx notifications and GoHighLevel CRM routing.",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -11,9 +11,8 @@
   "dependencies": {
     "cors": "~2.8.5",
     "dotenv": "~16.4.5",
-    "express": "~4.19.2",
+    "express": "^4.22.2",
     "express-rate-limit": "~7.3.1",
-    "helmet": "~7.1.0",
-    "twilio": "~5.3.0"
+    "helmet": "~7.1.0"
   }
 }

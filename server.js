@@ -72,9 +72,9 @@ app.get('/health', healthLimiter, (_req, res) => {
     timestamp: new Date().toISOString(),
     customer: process.env.CUSTOMER_NAME || 'unknown',
     integrations: {
-      email: !!process.env.RESEND_API_KEY,
-      sms:   !!process.env.TWILIO_ACCOUNT_SID,
-      crm:   !!process.env.HUBSPOT_ACCESS_TOKEN,
+      email: !!process.env.TELNYX_EMAIL_FROM,
+      sms:   !!process.env.TELNYX_API_KEY,
+      crm:   !!process.env.GHL_API_KEY,
     },
   });
 });
@@ -82,7 +82,7 @@ app.get('/health', healthLimiter, (_req, res) => {
 const customerName = process.env.CUSTOMER_NAME || 'Customer';
 app.listen(PORT, () => {
   console.log(`[${customerName}] API running on http://localhost:${PORT}`);
-  console.log(`  Email (Resend): ${process.env.RESEND_API_KEY ? '✓ configured' : '✗ not configured'}`);
-  console.log(`  SMS (Twilio):   ${process.env.TWILIO_ACCOUNT_SID ? '✓ configured' : '✗ not configured'}`);
-  console.log(`  CRM (HubSpot):  ${process.env.HUBSPOT_ACCESS_TOKEN ? '✓ configured' : '✗ not configured'}`);
+  console.log(`  Email (Telnyx): ${process.env.TELNYX_EMAIL_FROM ? '✓ configured' : '✗ not configured'}`);
+  console.log(`  SMS (Telnyx):   ${process.env.TELNYX_API_KEY ? '✓ configured' : '✗ not configured'}`);
+  console.log(`  CRM (GHL):      ${process.env.GHL_API_KEY    ? '✓ configured' : '✗ not configured'}`);
 });

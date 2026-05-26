@@ -12,31 +12,27 @@ function e(str) {
     .replace(/'/g, '&#x27;');
 }
 
-// POST to Twilio Comms Email API using Node's built-in https module.
-function twilioEmailSend(payload) {
+function telnyxEmailSend(payload) {
   return new Promise((resolve, reject) => {
     const body = JSON.stringify(payload);
-    const auth  = Buffer.from(
-      `${process.env.TWILIO_ACCOUNT_SID}:${process.env.TWILIO_AUTH_TOKEN}`
-    ).toString('base64');
 
     const req = https.request(
       {
-        hostname: 'comms.twilio.com',
-        path: '/v1/Emails',
+        hostname: 'api.telnyx.com',
+        path: '/v2/emails',
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Content-Length': Buffer.byteLength(body),
-          'Authorization': `Basic ${auth}`,
+          'Authorization': `Bearer ${process.env.TELNYX_API_KEY}`,
         },
       },
       (res) => {
         let data = '';
         res.on('data', (chunk) => { data += chunk; });
         res.on('end', () => {
-          if (res.statusCode === 202) return resolve(JSON.parse(data));
-          reject(new Error(`Twilio email API error ${res.statusCode}: ${data}`));
+          if (res.statusCode >= 200 && res.statusCode < 300) return resolve(JSON.parse(data));
+          reject(new Error(`Telnyx email error ${res.statusCode}: ${data}`));
         });
       }
     );
@@ -51,14 +47,12 @@ async function sendInternalNotification(booking) {
   const { contact, business, inquiry } = booking;
   const fullName = `${contact.firstName} ${contact.lastName}`;
 
-  return twilioEmailSend({
-    from: { address: process.env.TWILIO_EMAIL_FROM, name: AGENCY_NAME },
-    to:   [{ address: process.env.NOTIFY_EMAIL }],
-    content: {
-      subject: `New Strategy Call Request — ${business.name.slice(0, 100)}`,
-      html:    internalHtml({ fullName, contact, business, inquiry }),
-      text:    internalText({ fullName, contact, business, inquiry }),
-    },
+  return telnyxEmailSend({
+    from: { email: process.env.TELNYX_EMAIL_FROM, name: AGENCY_NAME },
+    to:   [{ email: process.env.NOTIFY_EMAIL }],
+    subject: `New Strategy Call Request — ${business.name.slice(0, 100)}`,
+    html: internalHtml({ fullName, contact, business, inquiry }),
+    text: internalText({ fullName, contact, business, inquiry }),
   });
 }
 
@@ -66,14 +60,12 @@ async function sendLeadConfirmation(booking) {
   const { contact, business } = booking;
   const fullName = `${contact.firstName} ${contact.lastName}`;
 
-  return twilioEmailSend({
-    from: { address: process.env.TWILIO_EMAIL_FROM, name: AGENCY_NAME },
-    to:   [{ address: contact.email, name: fullName }],
-    content: {
-      subject: `You're all set — ${AGENCY_NAME} Strategy Call`,
-      html:    confirmationHtml({ fullName, business }),
-      text:    confirmationText({ fullName, business }),
-    },
+  return telnyxEmailSend({
+    from: { email: process.env.TELNYX_EMAIL_FROM, name: AGENCY_NAME },
+    to:   [{ email: contact.email, name: fullName }],
+    subject: `You're all set — ${AGENCY_NAME} Strategy Call`,
+    html: confirmationHtml({ fullName, business }),
+    text: confirmationText({ fullName, business }),
   });
 }
 

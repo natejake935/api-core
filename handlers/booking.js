@@ -34,7 +34,7 @@ async function handleBooking(req, res) {
     receivedAt: new Date().toISOString(),
   };
 
-  // --- Email (Resend) ---
+  // --- Email (Telnyx) ---
   try {
     await Promise.all([
       sendInternalNotification(booking),
