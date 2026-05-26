@@ -72,9 +72,9 @@ app.get('/health', healthLimiter, (_req, res) => {
     timestamp: new Date().toISOString(),
     customer: process.env.CUSTOMER_NAME || 'unknown',
     integrations: {
-      email: !!process.env.TELNYX_EMAIL_FROM,
-      sms:   !!process.env.TELNYX_API_KEY,
-      crm:   !!process.env.GHL_API_KEY,
+      email: !!(process.env.TELNYX_API_KEY && process.env.TELNYX_EMAIL_FROM),
+      sms:   !!(process.env.TELNYX_API_KEY && process.env.TELNYX_FROM_NUMBER),
+      crm:   !!(process.env.GHL_API_KEY && process.env.GHL_LOCATION_ID),
     },
   });
 });
